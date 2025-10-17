@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Kalender</title>
+    <title>Bingo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       .bar { transition: width 700ms cubic-bezier(.2,.8,.2,1); }
@@ -21,14 +21,13 @@
       /* Karten-Layout: immer echte Quadrate unabhängig vom Text */
       .day { position: relative; border-radius: 1rem; overflow: hidden; }
       .square { position: relative; width: 100%; padding-top: 100%; } /* 1:1-Quadrat */
-      .content { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; padding: 12px; }
+      .content { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; padding: 10px; }
       .label{
-        display:block; /* vermeidet Inline-Clipping */
-        padding:2px 6px; /* Abstand zu runden Ecken */
-        font-weight:600; text-align:center; line-height:1.2; opacity:1;
-        white-space:normal; word-break: normal; overflow-wrap: break-word; hyphens: none;
-        text-wrap: balance; /* Safari/iOS unterstützt das */
-        font-size:16px; max-width:92%;
+        font-weight:600; text-align:center; line-height:1.15; opacity:1;
+        /* Lesbarkeit: keine Trennstriche, aber weiche Umbrüche erlaubt */
+        word-break: normal; overflow-wrap: anywhere; hyphens: none;
+        /* Startgröße – wird per JS automatisch verkleinert falls nötig */
+        font-size:16px; max-width:90%;
       }
       .check-wrap { position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:1; pointer-events:none; }
       .day.checked .check-wrap { display:flex; }
@@ -65,7 +64,7 @@
         "Mit allem drum und dran", "Kannste nüscht sagen", "Ganz Perfekt", "Wenn uns der Spaß verlässt",
         "Da gibts gar keine Probleme", "Den kenn ich gut", "Da hab ich Antennenmäßig schon mal was gemacht", "Viel trinken sagt mein Arzt immer",
         "Ich sag dazu nüscht, ABER", "Muss jeder selber wissen", "Die machen schon ihr Ding", "Man muss auch mal mit den Leuten reden",
-        "Sagt Waschi doch", "Im Kulturpalast, da kannste dir die Parkkarte entwerten lassen und bezahlst bloß...", "Wir fahren immer bissl eher los (so 2h) falls mal was ist", "Test 16"
+        "Sagt Waschi doch", "Im Kulturpalast, da kannste dir die Parkkarte entwerten lassen und bezahlst bloß...", "Wir fahren immer bissl eher los, falls mal was ist", "Test 16"
       ];
 
       let theme=localStorage.getItem('theme')||'dark';
@@ -123,37 +122,50 @@
         return yellow;
       }
 
-      // 🔤 Auto-Font-Scaling: passt die Schrift pro Kachel an, bis alles sichtbar ist
+      /* 🔤 Einheitliche Schriftgröße: nimm die kleinste, die in allen Kacheln passt (Höhe & Breite) */
       function autosizeLabelsUniform(){
         const boxes = $$('.day .content');
-        const min = 10, max = 18, base = 16;
-        let globalSize = max; // kleinste gefundene Größe
+        const MIN = 10, MAX = 18;
 
-        // 1) Für jedes Feld die benötigte Größe ermitteln
+        // 0) Start auf MAX (saubere Basis)
         boxes.forEach(box => {
           const label = box.querySelector('.label');
-          if (!label) return;
-
-          let size = base;
-          label.style.fontSize = size + 'px';
-          label.style.lineHeight = '1.12';
-
-          const maxH = box.clientHeight - 6; // kleiner Puffer
-          // so lange verkleinern, bis es in der Höhe passt
-          while (label.scrollHeight > maxH && size > min) {
-            size -= 1;
-            label.style.fontSize = size + 'px';
-          }
-          globalSize = Math.min(globalSize, size);
+          if (label) { label.style.fontSize = MAX + 'px'; label.style.lineHeight = '1.15'; }
         });
 
-        // 2) Kleinste ermittelte Größe auf ALLE Labels anwenden
-        globalSize = Math.max(min, Math.min(max, globalSize));
+        // 1) Größte passende Größe je Feld via binärer Suche ermitteln
+        const sizes = [];
         boxes.forEach(box => {
           const label = box.querySelector('.label');
           if (!label) return;
-          label.style.fontSize = globalSize + 'px';
-          label.style.lineHeight = '1.12';
+
+          const maxH = box.clientHeight - 2; // kleiner Puffer
+          const maxW = box.clientWidth  - 2;
+
+          const fits = (size) => {
+            label.style.fontSize = size + 'px';
+            // Reflow triggern
+            void label.offsetHeight;
+            return (label.scrollHeight <= maxH) && (label.scrollWidth <= maxW);
+          };
+
+          let lo = MIN, hi = MAX;
+          // Falls MAX passt, bleibt hi=MAX; sonst suche größte passende Größe
+          if (!fits(hi)) {
+            while (lo < hi) {
+              const mid = Math.floor((lo + hi + 1) / 2); // upper mid
+              if (fits(mid)) lo = mid; else hi = mid - 1;
+            }
+          }
+          label.style.fontSize = lo + 'px';
+          sizes.push(lo);
+        });
+
+        // 2) Kleinsten gefundenen Wert global anwenden
+        const global = Math.max(MIN, Math.min(...sizes, MAX));
+        boxes.forEach(box => {
+          const label = box.querySelector('.label');
+          if (label) { label.style.fontSize = global + 'px'; label.style.lineHeight = '1.15'; }
         });
       }
 
@@ -186,7 +198,7 @@
         $('#app').innerHTML=`
           <header class="mb-6 flex items-center justify-between">
             <div>
-              <h1 class="text-3xl md:text-4xl font-semibold tracking-tight">Zeitplan</h1>
+              <h1 class="text-3xl md:text-4xl font-semibold tracking-tight">Bingo</h1>
             </div>
             <div class="flex items-center gap-2">
               <button id="theme" class="rounded-2xl px-3 py-2 bg-slate-800/60 hover:bg-slate-800 shadow-lg shadow-slate-900/40 transition" title="Theme wechseln">🌙/☀️</button>
@@ -225,10 +237,10 @@
           });
         });
 
-        // Nach dem Rendern Texte passend skalieren
+        // Nach dem Rendern: einheitliche (kleinstmögliche) Schriftgröße anwenden
         autosizeLabelsUniform();
         if (!resizeBound) {
-          window.addEventListener('resize', debounce(autosizeLabels, 150));
+          window.addEventListener('resize', debounce(autosizeLabelsUniform, 150));
           resizeBound = true;
         }
       }
