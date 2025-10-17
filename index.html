@@ -21,13 +21,14 @@
       /* Karten-Layout: immer echte Quadrate unabhängig vom Text */
       .day { position: relative; border-radius: 1rem; overflow: hidden; }
       .square { position: relative; width: 100%; padding-top: 100%; } /* 1:1-Quadrat */
-      .content { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; padding: 10px; }
+      .content { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; padding: 12px; }
       .label{
-        font-weight:600; text-align:center; line-height:1.15; opacity:1;
-        /* Lesbarkeit: keine Trennstriche, aber weiche Umbrüche erlaubt */
-        word-break: normal; overflow-wrap: anywhere; hyphens: none;
-        /* Startgröße – wird per JS automatisch verkleinert falls nötig */
-        font-size:16px; max-width:90%;
+        display:block; /* vermeidet Inline-Clipping */
+        padding:2px 6px; /* Abstand zu runden Ecken */
+        font-weight:600; text-align:center; line-height:1.2; opacity:1;
+        white-space:normal; word-break: normal; overflow-wrap: break-word; hyphens: none;
+        text-wrap: balance; /* Safari/iOS unterstützt das */
+        font-size:16px; max-width:92%;
       }
       .check-wrap { position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:1; pointer-events:none; }
       .day.checked .check-wrap { display:flex; }
@@ -123,27 +124,36 @@
       }
 
       // 🔤 Auto-Font-Scaling: passt die Schrift pro Kachel an, bis alles sichtbar ist
-      function autosizeLabels(){
-        $$('.day .content').forEach(box => {
+      function autosizeLabelsUniform(){
+        const boxes = $$('.day .content');
+        const min = 10, max = 18, base = 16;
+        let globalSize = max; // kleinste gefundene Größe
+
+        // 1) Für jedes Feld die benötigte Größe ermitteln
+        boxes.forEach(box => {
           const label = box.querySelector('.label');
           if (!label) return;
-          // Basiswerte
-          let size = 16; // entspricht CSS-Startgröße
-          const min = 10, max = 18;
+
+          let size = base;
           label.style.fontSize = size + 'px';
           label.style.lineHeight = '1.12';
 
-          // Platz innerhalb des Quadrats (mit kleinem Puffer)
-          const maxH = box.clientHeight - 6;
-          // Solange verkleinern, bis der Text vollständig reinpasst
+          const maxH = box.clientHeight - 6; // kleiner Puffer
+          // so lange verkleinern, bis es in der Höhe passt
           while (label.scrollHeight > maxH && size > min) {
             size -= 1;
             label.style.fontSize = size + 'px';
           }
-          // Falls sehr kurzer Text – sanft nach oben deckeln
-          if (label.scrollHeight <= maxH && size < max) {
-            // optional leicht vergrößern – hier bewusst nicht auto-aufblasen
-          }
+          globalSize = Math.min(globalSize, size);
+        });
+
+        // 2) Kleinste ermittelte Größe auf ALLE Labels anwenden
+        globalSize = Math.max(min, Math.min(max, globalSize));
+        boxes.forEach(box => {
+          const label = box.querySelector('.label');
+          if (!label) return;
+          label.style.fontSize = globalSize + 'px';
+          label.style.lineHeight = '1.12';
         });
       }
 
@@ -216,7 +226,7 @@
         });
 
         // Nach dem Rendern Texte passend skalieren
-        autosizeLabels();
+        autosizeLabelsUniform();
         if (!resizeBound) {
           window.addEventListener('resize', debounce(autosizeLabels, 150));
           resizeBound = true;
