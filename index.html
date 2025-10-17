@@ -18,12 +18,15 @@
 
       .bg-gradient{ background-image:linear-gradient(to bottom,#0f172a,#0b1324,#000000); }
 
-      .day { display:flex; align-items:center; justify-content:center; text-align:center; }
-      .day .label { font-weight:600; }
-      .day .check-wrap { display:none; z-index:1; }
-      .day.checked .check-wrap { display:flex; align-items:center; justify-content:center; z-index:1; }
-      .day .label { position:relative; z-index:0; transition: opacity .15s ease; }
-      .day.checked .label { opacity: .35; }
+      /* Karten-Layout: immer echte Quadrate unabhängig vom Text */
+      .day { position: relative; border-radius: 1rem; overflow: hidden; }
+      .square { position: relative; width: 100%; padding-top: 100%; } /* 1:1-Quadrat */
+      .content { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; padding: 10px; }
+      .label { font-weight: 600; text-align: center; line-height: 1.15; opacity: 1; 
+               word-break: break-word; overflow-wrap: anywhere; hyphens: auto; }
+      .check-wrap { position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:1; pointer-events:none; }
+      .day.checked .check-wrap { display:flex; }
+      .day.checked .label { opacity: .35; } /* Text bleibt sichtbar */
     </style>
   </head>
   <body class="min-h-screen w-full bg-gradient text-slate-100 p-6">
@@ -52,7 +55,6 @@
 
       const allDays = range(START, END);
 
-      // 🟩 Texte für jedes Kästchen individuell festlegen (16 Felder)
       const dayTexts = [
         "Mit allem drum und dran", "Kannste nüscht sagen", "Ganz Perfekt", "Wenn uns der Spaß verlässt",
         "Da gibts gar keine Probleme", "Den kenn ich gut", "Da hab ich Antennenmäßig schon mal was gemacht", "Viel trinken sagt mein Arzt immer",
@@ -96,42 +98,39 @@
         </div>`;
       }
 
-      // Ermittelt, welche Felder zu einer vollen Reihe/Spalte/Diagonale gehören
       function computeYellowSet() {
         const yellow = new Set();
-        // Reihen (4×4)
         for (let r = 0; r < 4; r++) {
           const idxs = [r*4, r*4+1, r*4+2, r*4+3];
           const allChecked = idxs.every(i => checks[allDays[i]]);
           if (allChecked) idxs.forEach(i => yellow.add(i));
         }
-        // Spalten
         for (let c = 0; c < 4; c++) {
           const idxs = [c, c+4, c+8, c+12];
           const allChecked = idxs.every(i => checks[allDays[i]]);
           if (allChecked) idxs.forEach(i => yellow.add(i));
         }
-        // Diagonalen
         const diag1 = [0,5,10,15];
         const diag2 = [3,6,9,12];
         if (diag1.every(i => checks[allDays[i]])) diag1.forEach(i => yellow.add(i));
         if (diag2.every(i => checks[allDays[i]])) diag2.forEach(i => yellow.add(i));
-
-        return yellow; // enthält Indexe (0..15), die gelb markiert werden sollen
-        }
+        return yellow;
+      }
 
       function dayCard(day,index,{checked,yellow}){
         const label = dayTexts[index] || "Test";
         const borderClass = checked ? (yellow ? 'border-yellow-300/70' : 'border-emerald-400/60') : 'border-slate-800';
         const tickColor = yellow ? 'text-yellow-300' : 'text-emerald-400';
         return `<button data-day="${day}"
-          class="day aspect-square relative rounded-2xl border p-4 text-left transition w-full bg-slate-900/60 backdrop-blur shadow-xl ${checked ? 'checked ' : ''}${borderClass} hover:-translate-y-0.5 hover:shadow-2xl">
-
-          <div class="absolute inset-0 flex items-center justify-center check-wrap">
-            <svg class="tick h-8 w-8 ${tickColor}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          class="day relative w-full border bg-slate-900/60 backdrop-blur shadow-xl ${checked ? 'checked ' : ''}${borderClass} hover:-translate-y-0.5 hover:shadow-2xl">
+          <div class="square">
+            <div class="content">
+              <div class="label text-sm sm:text-base">${label}</div>
+              <div class="check-wrap">
+                <svg class="tick h-8 w-8 ${tickColor}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </div>
+            </div>
           </div>
-
-          <div class="label text-lg">${label}</div>
         </button>`;
       }
 
@@ -164,7 +163,7 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-4 gap-4">
+          <div class="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 max-w-[420px] mx-auto">
             ${allDays.map((day, i)=>dayCard(day,i,{checked:!!checks[day], yellow: yellowSet.has(i)})).join('')}
           </div>
 
