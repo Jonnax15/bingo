@@ -22,11 +22,16 @@
       .day { position: relative; border-radius: 1rem; overflow: hidden; }
       .square { position: relative; width: 100%; padding-top: 100%; } /* 1:1-Quadrat */
       .content { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; padding: 10px; }
-      .label { font-weight: 600; text-align: center; line-height: 1.15; opacity: 1; 
-               word-break: break-word; overflow-wrap: anywhere; hyphens: auto; }
+      .label{
+        font-weight:600; text-align:center; line-height:1.15; opacity:1;
+        /* Lesbarkeit: keine Trennstriche, aber weiche Umbrüche erlaubt */
+        word-break: normal; overflow-wrap: anywhere; hyphens: none;
+        /* Startgröße – wird per JS automatisch verkleinert falls nötig */
+        font-size:16px; max-width:90%;
+      }
       .check-wrap { position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:1; pointer-events:none; }
       .day.checked .check-wrap { display:flex; }
-      .day.checked .label { opacity: .35; } /* Text bleibt sichtbar */
+      .day.checked .label { opacity: 1; } /* Text bleibt voll sichtbar */
     </style>
   </head>
   <body class="min-h-screen w-full bg-gradient text-slate-100 p-6">
@@ -117,6 +122,31 @@
         return yellow;
       }
 
+      // 🔤 Auto-Font-Scaling: passt die Schrift pro Kachel an, bis alles sichtbar ist
+      function autosizeLabels(){
+        $$('.day .content').forEach(box => {
+          const label = box.querySelector('.label');
+          if (!label) return;
+          // Basiswerte
+          let size = 16; // entspricht CSS-Startgröße
+          const min = 10, max = 18;
+          label.style.fontSize = size + 'px';
+          label.style.lineHeight = '1.12';
+
+          // Platz innerhalb des Quadrats (mit kleinem Puffer)
+          const maxH = box.clientHeight - 6;
+          // Solange verkleinern, bis der Text vollständig reinpasst
+          while (label.scrollHeight > maxH && size > min) {
+            size -= 1;
+            label.style.fontSize = size + 'px';
+          }
+          // Falls sehr kurzer Text – sanft nach oben deckeln
+          if (label.scrollHeight <= maxH && size < max) {
+            // optional leicht vergrößern – hier bewusst nicht auto-aufblasen
+          }
+        });
+      }
+
       function dayCard(day,index,{checked,yellow}){
         const label = dayTexts[index] || "Test";
         const borderClass = checked ? (yellow ? 'border-yellow-300/70' : 'border-emerald-400/60') : 'border-slate-800';
@@ -134,6 +164,7 @@
         </button>`;
       }
 
+      let resizeBound = false;
       function render(){
         if(!remoteReady){ $('#app').innerHTML='<div class="p-10 text-center text-slate-300">Lade…</div>'; return; }
 
@@ -183,6 +214,13 @@
             render();
           });
         });
+
+        // Nach dem Rendern Texte passend skalieren
+        autosizeLabels();
+        if (!resizeBound) {
+          window.addEventListener('resize', debounce(autosizeLabels, 150));
+          resizeBound = true;
+        }
       }
 
       render();
