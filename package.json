@@ -1,0 +1,8 @@
+{
+  "name": "kalender-checks",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@vercel/kv": "latest"
+  }
+}
