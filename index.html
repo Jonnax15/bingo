@@ -97,7 +97,10 @@
           checks = local || {};
         }finally{ remoteReady = true; render(); }
       }
-      loadRemote();
+      setInterval(() => {
+        loadRemote();
+      }, 1000);
+      
 
       const save = debounce(async ()=>{
         writeLocal();
@@ -260,6 +263,7 @@
     </script>
   </body>
 </html>
+
 
 
 
